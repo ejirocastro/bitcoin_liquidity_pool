@@ -30,3 +30,16 @@
 (define-data-var last-reward-block uint u0)
 (define-data-var pool-initialized bool false)
 (define-data-var emergency-shutdown bool false)
+
+
+;; Data maps
+(define-map liquidity-providers
+    principal
+    {
+        shares: uint,
+        deposited-amount: uint,
+        last-deposit-block: uint,
+        last-withdrawal-block: uint,
+        cumulative-rewards: uint
+    }
+)
