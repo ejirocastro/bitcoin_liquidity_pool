@@ -184,3 +184,35 @@
         )
     )
 )
+
+;; Reward distribution
+(define-private (update-reward-checkpoint)
+    (let
+        (
+            (current-block block-height)
+            (last-block (var-get last-reward-block))
+            (blocks-elapsed (- current-block last-block))
+        )
+        (if (> blocks-elapsed u0)
+            (begin
+                (map-set reward-checkpoints current-block
+                    {
+                        total-liquidity: (var-get total-liquidity),
+                        reward-rate: (calculate-reward-rate),
+                        accumulated-rewards: (+ 
+                            (default-to u0 
+                                (get accumulated-rewards 
+                                    (map-get? reward-checkpoints last-block)
+                                )
+                            )
+                            (* blocks-elapsed (calculate-reward-rate))
+                        )
+                    }
+                )
+                (var-set last-reward-block current-block)
+                true
+            )
+            false
+        )
+    )
+)
