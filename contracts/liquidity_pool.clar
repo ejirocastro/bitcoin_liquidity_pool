@@ -1,7 +1,11 @@
-;; Bitcoin Liquidity Pool
-;; A decentralized protocol for providing Bitcoin liquidity on Stacks
+;; liquidity_pool.clar
+;; Bitcoin Liquidity Pool Implementation
 
-(impl-trait 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.liquidity-pool-trait.pool-trait)
+;; Import the trait from the same directory
+(use-trait pool-trait .liquidity-pool-trait.pool-trait)
+
+;; Implement the trait
+(impl-trait .liquidity-pool-trait.pool-trait)
 
 ;; Error codes
 (define-constant ERR-NOT-AUTHORIZED (err u100))
@@ -120,7 +124,7 @@
 )
 
 (define-read-only (get-provider-info (provider principal))
-    (map-get? liquidity-providers provider)
+    (ok (map-get? liquidity-providers provider))
 )
 
 (define-read-only (get-provider-share-value (provider principal))

@@ -14,6 +14,7 @@ epoch = 2.5
 path = 'contracts/liquidity_pool.clar'
 clarity_version = 2
 epoch = 2.5
+depends_on = ["liquidity-pool-trait"]
 [repl.analysis]
 passes = ['check_checker']
 
