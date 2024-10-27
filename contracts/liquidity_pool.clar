@@ -216,3 +216,16 @@
         )
     )
 )
+
+;; Calculate reward rate based on total liquidity
+(define-private (calculate-reward-rate)
+    (let
+        (
+            (total-liq (var-get total-liquidity))
+        )
+        (if (is-eq total-liq u0)
+            u0
+            (/ (* total-liq u1) u100000) ;; 0.001% per block
+        )
+    )
+)
