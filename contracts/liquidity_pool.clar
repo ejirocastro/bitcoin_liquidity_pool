@@ -58,3 +58,14 @@
 (define-private (is-contract-owner)
     (is-eq tx-sender CONTRACT-OWNER)
 )
+
+;; Initialize pool
+(define-public (initialize-pool)
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (asserts! (not (var-get pool-initialized)) ERR-ALREADY-INITIALIZED)
+        (var-set pool-initialized true)
+        (var-set last-reward-block block-height)
+        (ok true)
+    )
+)
