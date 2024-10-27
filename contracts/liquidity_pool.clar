@@ -229,3 +229,18 @@
         )
     )
 )
+
+
+;; Read-only functions
+(define-read-only (get-pool-info)
+    {
+        total-liquidity: (var-get total-liquidity),
+        total-shares: (var-get total-shares),
+        is-initialized: (var-get pool-initialized),
+        is-shutdown: (var-get emergency-shutdown)
+    }
+)
+
+(define-read-only (get-provider-info (provider principal))
+    (map-get? liquidity-providers provider)
+)
