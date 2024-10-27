@@ -244,3 +244,16 @@
 (define-read-only (get-provider-info (provider principal))
     (map-get? liquidity-providers provider)
 )
+
+(define-read-only (get-provider-share-value (provider principal))
+    (let
+        (
+            (provider-data (unwrap! (map-get? liquidity-providers provider) (err u0)))
+            (provider-shares (get shares provider-data))
+        )
+        (ok (if (is-eq (var-get total-shares) u0)
+            u0
+            (/ (* provider-shares (var-get total-liquidity)) (var-get total-shares))
+        ))
+    )
+)
