@@ -23,14 +23,12 @@
 (define-constant PROTOCOL-FEE u5) ;; 0.5%
 (define-constant PRECISION u1000000) ;; 6 decimal places for calculations
 
-
 ;; Data variables
 (define-data-var total-liquidity uint u0)
 (define-data-var total-shares uint u0)
 (define-data-var last-reward-block uint u0)
 (define-data-var pool-initialized bool false)
 (define-data-var emergency-shutdown bool false)
-
 
 ;; Data maps
 (define-map liquidity-providers
@@ -43,7 +41,6 @@
         cumulative-rewards: uint
     }
 )
-
 
 (define-map reward-checkpoints
     uint ;; block height
@@ -70,7 +67,6 @@
     )
 )
 
-
 ;; Emergency controls
 (define-public (emergency-shutdown)
     (begin
@@ -87,7 +83,6 @@
         (ok true)
     )
 )
-
 
 ;; Deposit liquidity
 (define-public (deposit (amount uint))
@@ -141,7 +136,6 @@
         )
     )
 )
-
 
 ;; Withdraw liquidity
 (define-public (withdraw (shares uint))
@@ -230,7 +224,6 @@
     )
 )
 
-
 ;; Read-only functions
 (define-read-only (get-pool-info)
     {
@@ -258,10 +251,16 @@
     )
 )
 
-
 (define-read-only (calculate-shares-for-amount (amount uint))
     (ok (if (is-eq (var-get total-liquidity) u0)
         amount
         (/ (* amount (var-get total-shares)) (var-get total-liquidity))
+    ))
+)
+
+(define-read-only (calculate-amount-for-shares (shares uint))
+    (ok (if (is-eq (var-get total-shares) u0)
+        u0
+        (/ (* shares (var-get total-liquidity)) (var-get total-shares))
     ))
 )
