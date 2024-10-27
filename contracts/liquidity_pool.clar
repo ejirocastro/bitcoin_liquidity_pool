@@ -87,3 +87,57 @@
         (ok true)
     )
 )
+
+
+;; Deposit liquidity
+(define-public (deposit (amount uint))
+    (let
+        (
+            (provider-data (default-to 
+                {
+                    shares: u0,
+                    deposited-amount: u0,
+                    last-deposit-block: u0,
+                    last-withdrawal-block: u0,
+                    cumulative-rewards: u0
+                }
+                (map-get? liquidity-providers tx-sender)
+            ))
+            (current-shares (get shares provider-data))
+            (current-deposits (get deposited-amount provider-data))
+        )
+        (asserts! (var-get pool-initialized) ERR-NOT-INITIALIZED)
+        (asserts! (not (var-get emergency-shutdown)) ERR-POOL-FULL)
+        (asserts! (>= amount MIN-DEPOSIT) ERR-INVALID-AMOUNT)
+        (asserts! (<= (+ amount (var-get total-liquidity)) MAX-POOL-SIZE) ERR-POOL-FULL)
+        
+        ;; Calculate new shares
+        (let
+            (
+                (new-shares (if (is-eq (var-get total-liquidity) u0)
+                    amount
+                    (/ (* amount (var-get total-shares)) (var-get total-liquidity))
+                ))
+            )
+            ;; Update provider data
+            (map-set liquidity-providers tx-sender
+                {
+                    shares: (+ current-shares new-shares),
+                    deposited-amount: (+ current-deposits amount),
+                    last-deposit-block: block-height,
+                    last-withdrawal-block: (get last-withdrawal-block provider-data),
+                    cumulative-rewards: (get cumulative-rewards provider-data)
+                }
+            )
+            
+            ;; Update pool state
+            (var-set total-liquidity (+ (var-get total-liquidity) amount))
+            (var-set total-shares (+ (var-get total-shares) new-shares))
+            
+            ;; Update reward checkpoint
+            (update-reward-checkpoint)
+            
+            (ok new-shares)
+        )
+    )
+)
