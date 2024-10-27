@@ -53,3 +53,8 @@
         accumulated-rewards: uint
     }
 )
+
+;; Authorization check
+(define-private (is-contract-owner)
+    (is-eq tx-sender CONTRACT-OWNER)
+)
