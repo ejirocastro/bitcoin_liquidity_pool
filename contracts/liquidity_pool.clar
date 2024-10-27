@@ -69,3 +69,13 @@
         (ok true)
     )
 )
+
+
+;; Emergency controls
+(define-public (emergency-shutdown)
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (var-set emergency-shutdown true)
+        (ok true)
+    )
+)
