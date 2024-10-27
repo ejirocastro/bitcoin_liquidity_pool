@@ -23,3 +23,10 @@
 (define-constant PROTOCOL-FEE u5) ;; 0.5%
 (define-constant PRECISION u1000000) ;; 6 decimal places for calculations
 
+
+;; Data variables
+(define-data-var total-liquidity uint u0)
+(define-data-var total-shares uint u0)
+(define-data-var last-reward-block uint u0)
+(define-data-var pool-initialized bool false)
+(define-data-var emergency-shutdown bool false)
