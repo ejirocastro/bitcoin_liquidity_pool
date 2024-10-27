@@ -79,3 +79,11 @@
         (ok true)
     )
 )
+
+(define-public (resume-pool)
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (var-set emergency-shutdown false)
+        (ok true)
+    )
+)
