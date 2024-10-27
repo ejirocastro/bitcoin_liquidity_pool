@@ -43,3 +43,13 @@
         cumulative-rewards: uint
     }
 )
+
+
+(define-map reward-checkpoints
+    uint ;; block height
+    {
+        total-liquidity: uint,
+        reward-rate: uint,
+        accumulated-rewards: uint
+    }
+)
