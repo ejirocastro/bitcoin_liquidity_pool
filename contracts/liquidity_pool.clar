@@ -257,3 +257,11 @@
         ))
     )
 )
+
+
+(define-read-only (calculate-shares-for-amount (amount uint))
+    (ok (if (is-eq (var-get total-liquidity) u0)
+        amount
+        (/ (* amount (var-get total-shares)) (var-get total-liquidity))
+    ))
+)
