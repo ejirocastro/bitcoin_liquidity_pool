@@ -13,3 +13,13 @@
 (define-constant ERR-NOT-INITIALIZED (err u106))
 (define-constant ERR-WITHDRAWAL-TOO-LARGE (err u107))
 (define-constant ERR-COOLDOWN-ACTIVE (err u108))
+
+;; Constants
+(define-constant CONTRACT-OWNER tx-sender)
+(define-constant MAX-POOL-SIZE u1000000000000) ;; 10,000 BTC in sats
+(define-constant MIN-DEPOSIT u100000) ;; 0.001 BTC in sats
+(define-constant REWARD-CYCLE-LENGTH u144) ;; ~1 day in blocks
+(define-constant COOLDOWN-PERIOD u72) ;; ~12 hours in blocks
+(define-constant PROTOCOL-FEE u5) ;; 0.5%
+(define-constant PRECISION u1000000) ;; 6 decimal places for calculations
+
