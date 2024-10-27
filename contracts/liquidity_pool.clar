@@ -23,12 +23,14 @@
 (define-constant PROTOCOL-FEE u5) ;; 0.5%
 (define-constant PRECISION u1000000) ;; 6 decimal places for calculations
 
-;; Data variables
+;; Data variables - State Group 1: Pool Configuration
+(define-data-var pool-initialized bool false)
+(define-data-var emergency-shutdown bool false)
+
+;; Data variables - State Group 2: Pool Metrics
 (define-data-var total-liquidity uint u0)
 (define-data-var total-shares uint u0)
 (define-data-var last-reward-block uint u0)
-(define-data-var pool-initialized bool false)
-(define-data-var emergency-shutdown bool false)
 
 ;; Data maps
 (define-map liquidity-providers
@@ -51,135 +53,23 @@
     }
 )
 
-;; Authorization check
+;; Private helper functions
 (define-private (is-contract-owner)
     (is-eq tx-sender CONTRACT-OWNER)
 )
 
-;; Initialize pool
-(define-public (initialize-pool)
-    (begin
-        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
-        (asserts! (not (var-get pool-initialized)) ERR-ALREADY-INITIALIZED)
-        (var-set pool-initialized true)
-        (var-set last-reward-block block-height)
-        (ok true)
-    )
-)
-
-;; Emergency controls
-(define-public (emergency-shutdown)
-    (begin
-        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
-        (var-set emergency-shutdown true)
-        (ok true)
-    )
-)
-
-(define-public (resume-pool)
-    (begin
-        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
-        (var-set emergency-shutdown false)
-        (ok true)
-    )
-)
-
-;; Deposit liquidity
-(define-public (deposit (amount uint))
+(define-private (calculate-reward-rate)
     (let
         (
-            (provider-data (default-to 
-                {
-                    shares: u0,
-                    deposited-amount: u0,
-                    last-deposit-block: u0,
-                    last-withdrawal-block: u0,
-                    cumulative-rewards: u0
-                }
-                (map-get? liquidity-providers tx-sender)
-            ))
-            (current-shares (get shares provider-data))
-            (current-deposits (get deposited-amount provider-data))
+            (total-liq (var-get total-liquidity))
         )
-        (asserts! (var-get pool-initialized) ERR-NOT-INITIALIZED)
-        (asserts! (not (var-get emergency-shutdown)) ERR-POOL-FULL)
-        (asserts! (>= amount MIN-DEPOSIT) ERR-INVALID-AMOUNT)
-        (asserts! (<= (+ amount (var-get total-liquidity)) MAX-POOL-SIZE) ERR-POOL-FULL)
-        
-        ;; Calculate new shares
-        (let
-            (
-                (new-shares (if (is-eq (var-get total-liquidity) u0)
-                    amount
-                    (/ (* amount (var-get total-shares)) (var-get total-liquidity))
-                ))
-            )
-            ;; Update provider data
-            (map-set liquidity-providers tx-sender
-                {
-                    shares: (+ current-shares new-shares),
-                    deposited-amount: (+ current-deposits amount),
-                    last-deposit-block: block-height,
-                    last-withdrawal-block: (get last-withdrawal-block provider-data),
-                    cumulative-rewards: (get cumulative-rewards provider-data)
-                }
-            )
-            
-            ;; Update pool state
-            (var-set total-liquidity (+ (var-get total-liquidity) amount))
-            (var-set total-shares (+ (var-get total-shares) new-shares))
-            
-            ;; Update reward checkpoint
-            (update-reward-checkpoint)
-            
-            (ok new-shares)
+        (if (is-eq total-liq u0)
+            u0
+            (/ (* total-liq u1) u100000) ;; 0.001% per block
         )
     )
 )
 
-;; Withdraw liquidity
-(define-public (withdraw (shares uint))
-    (let
-        (
-            (provider-data (unwrap! (map-get? liquidity-providers tx-sender) ERR-INSUFFICIENT-BALANCE))
-            (current-shares (get shares provider-data))
-            (last-withdrawal (get last-withdrawal-block provider-data))
-            (withdrawal-amount (/ (* shares (var-get total-liquidity)) (var-get total-shares)))
-        )
-        (asserts! (var-get pool-initialized) ERR-NOT-INITIALIZED)
-        (asserts! (>= current-shares shares) ERR-INSUFFICIENT-BALANCE)
-        (asserts! (>= (- block-height last-withdrawal) COOLDOWN-PERIOD) ERR-COOLDOWN-ACTIVE)
-        
-        ;; Calculate protocol fee
-        (let
-            (
-                (fee-amount (/ (* withdrawal-amount PROTOCOL-FEE) u1000))
-                (final-amount (- withdrawal-amount fee-amount))
-            )
-            ;; Update provider data
-            (map-set liquidity-providers tx-sender
-                {
-                    shares: (- current-shares shares),
-                    deposited-amount: (- (get deposited-amount provider-data) withdrawal-amount),
-                    last-deposit-block: (get last-deposit-block provider-data),
-                    last-withdrawal-block: block-height,
-                    cumulative-rewards: (get cumulative-rewards provider-data)
-                }
-            )
-            
-            ;; Update pool state
-            (var-set total-liquidity (- (var-get total-liquidity) withdrawal-amount))
-            (var-set total-shares (- (var-get total-shares) shares))
-            
-            ;; Update reward checkpoint
-            (update-reward-checkpoint)
-            
-            (ok final-amount)
-        )
-    )
-)
-
-;; Reward distribution
 (define-private (update-reward-checkpoint)
     (let
         (
@@ -211,26 +101,21 @@
     )
 )
 
-;; Calculate reward rate based on total liquidity
-(define-private (calculate-reward-rate)
-    (let
-        (
-            (total-liq (var-get total-liquidity))
-        )
-        (if (is-eq total-liq u0)
-            u0
-            (/ (* total-liq u1) u100000) ;; 0.001% per block
-        )
-    )
+;; Read-only functions - Configuration Status
+(define-read-only (get-init-status)
+    (var-get pool-initialized)
 )
 
-;; Read-only functions
-(define-read-only (get-pool-info)
+(define-read-only (get-emergency-status)
+    (var-get emergency-shutdown)
+)
+
+;; Read-only functions - Pool Information
+(define-read-only (get-liquidity-info)
     {
         total-liquidity: (var-get total-liquidity),
         total-shares: (var-get total-shares),
-        is-initialized: (var-get pool-initialized),
-        is-shutdown: (var-get emergency-shutdown)
+        last-reward-block: (var-get last-reward-block)
     }
 )
 
@@ -248,6 +133,69 @@
             u0
             (/ (* provider-shares (var-get total-liquidity)) (var-get total-shares))
         ))
+    )
+)
+
+;; Public functions - Pool Administration
+(define-public (initialize-pool)
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (asserts! (not (var-get pool-initialized)) ERR-ALREADY-INITIALIZED)
+        (var-set pool-initialized true)
+        (var-set last-reward-block block-height)
+        (ok true)
+    )
+)
+
+(define-public (set-emergency-shutdown (shutdown bool))
+    (begin
+        (asserts! (is-contract-owner) ERR-NOT-AUTHORIZED)
+        (var-set emergency-shutdown shutdown)
+        (ok true)
+    )
+)
+
+;; Public functions - Pool Operations
+(define-public (deposit (amount uint))
+    (let
+        (
+            (provider-data (default-to 
+                {
+                    shares: u0,
+                    deposited-amount: u0,
+                    last-deposit-block: u0,
+                    last-withdrawal-block: u0,
+                    cumulative-rewards: u0
+                }
+                (map-get? liquidity-providers tx-sender)
+            ))
+        )
+        (asserts! (var-get pool-initialized) ERR-NOT-INITIALIZED)
+        (asserts! (not (var-get emergency-shutdown)) ERR-POOL-FULL)
+        (asserts! (>= amount MIN-DEPOSIT) ERR-INVALID-AMOUNT)
+        (asserts! (<= (+ amount (var-get total-liquidity)) MAX-POOL-SIZE) ERR-POOL-FULL)
+        
+        (let
+            (
+                (new-shares (if (is-eq (var-get total-liquidity) u0)
+                    amount
+                    (/ (* amount (var-get total-shares)) (var-get total-liquidity))
+                ))
+            )
+            (map-set liquidity-providers tx-sender
+                {
+                    shares: (+ (get shares provider-data) new-shares),
+                    deposited-amount: (+ (get deposited-amount provider-data) amount),
+                    last-deposit-block: block-height,
+                    last-withdrawal-block: (get last-withdrawal-block provider-data),
+                    cumulative-rewards: (get cumulative-rewards provider-data)
+                }
+            )
+            (var-set total-liquidity (+ (var-get total-liquidity) amount))
+            (var-set total-shares (+ (var-get total-shares) new-shares))
+            (update-reward-checkpoint)
+            (ok new-shares)
+        )
     )
 )
 
