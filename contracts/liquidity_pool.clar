@@ -141,3 +141,46 @@
         )
     )
 )
+
+
+;; Withdraw liquidity
+(define-public (withdraw (shares uint))
+    (let
+        (
+            (provider-data (unwrap! (map-get? liquidity-providers tx-sender) ERR-INSUFFICIENT-BALANCE))
+            (current-shares (get shares provider-data))
+            (last-withdrawal (get last-withdrawal-block provider-data))
+            (withdrawal-amount (/ (* shares (var-get total-liquidity)) (var-get total-shares)))
+        )
+        (asserts! (var-get pool-initialized) ERR-NOT-INITIALIZED)
+        (asserts! (>= current-shares shares) ERR-INSUFFICIENT-BALANCE)
+        (asserts! (>= (- block-height last-withdrawal) COOLDOWN-PERIOD) ERR-COOLDOWN-ACTIVE)
+        
+        ;; Calculate protocol fee
+        (let
+            (
+                (fee-amount (/ (* withdrawal-amount PROTOCOL-FEE) u1000))
+                (final-amount (- withdrawal-amount fee-amount))
+            )
+            ;; Update provider data
+            (map-set liquidity-providers tx-sender
+                {
+                    shares: (- current-shares shares),
+                    deposited-amount: (- (get deposited-amount provider-data) withdrawal-amount),
+                    last-deposit-block: (get last-deposit-block provider-data),
+                    last-withdrawal-block: block-height,
+                    cumulative-rewards: (get cumulative-rewards provider-data)
+                }
+            )
+            
+            ;; Update pool state
+            (var-set total-liquidity (- (var-get total-liquidity) withdrawal-amount))
+            (var-set total-shares (- (var-get total-shares) shares))
+            
+            ;; Update reward checkpoint
+            (update-reward-checkpoint)
+            
+            (ok final-amount)
+        )
+    )
+)
